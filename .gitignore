@@ -53,3 +53,34 @@ dkms.conf
 
 # debug information files
 *.dwo
+
+
+# Build outputs
+Debug/
+Release/
+
+# Compiled files
+*.obj
+*.out
+*.map
+*.d
+
+# CCS generated
+.ccsproject
+.cproject
+.project
+targetConfigs/
+
+# Vendor files (if present)
+driverlib/
+
+# Default linker scripts
+*.cmd
+
+# Editor
+*.bak
+*.tmp
+
+*.clangd
+
+*.prefs
