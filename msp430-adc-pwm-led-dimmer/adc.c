@@ -1,61 +1,22 @@
 
 /**
  * @file adc.c
- * @brief ADC12 setup on A0 with change‑threshold publishing and ISR wakeup.
- *
- * - Uses ADC12 on channel A0 (P6.0).
- * - Continuously samples in repeat‑single‑channel mode.
- * - When the raw value changes by more than ADC_CHANGE_THRESHHOLD from the last
- *   published value, the ISR:
- *     - stores the new sample,
- *     - marks it as needing publication,
- *     - and exits low‑power mode (LPM0) so main can process it.
- *
- * The `poll_adc_value` API lets main retrieve each “interesting” sample exactly
- * once.
+ * @brief ADC12 A0 sampling with change-threshold publishing and ISR wake.
  */
 
 #include <msp430.h>
 #include <stdint.h>
 #include <stdbool.h>
 
-/**
- * @brief ADC change threshold in raw counts.
- *
- * A new sample is published only when
- * $|raw - last\_published| > ADC\_CHANGE\_THRESHHOLD$.
- *
- * For a 12‑bit ADC (range $0 \dots 4095$), 100 ≈ 2.4 % of full scale.
- */
-
-#define ADC_CHANGE_THRESHHOLD 100
-
-/**
- * @brief Publication state:
- *
- * - published == false  → there is a new value in publish_value that
- *                         main has not yet consumed.
- * - published == true   → no unread value is pending.
- *
- */
 
 
-static volatile bool published = false; 
+#define ADC_CHANGE_THRESHHOLD 100        /* raw counts; 12-bit ADC */
+
+
+static volatile bool published = false;         /* false => new value pending */
 static volatile uint16_t publish_value = 0; 
 
-/**
- * @brief Initialize ADC12 to continuously sample A0 (P6.0) with interrupts.
- *
- * Configuration:
- * - Input: A0 on P6.0 (analog).
- * - Mode: repeat single channel (ADC12CONSEQ_2).
- * - Clock: SMCLK, divider /1.
- * - Resolution: 12‑bit.
- * - Reference: AVCC/AVSS (board supply rails).
- * - Interrupt: ADC12MEM0 interrupt enabled.
- *
- * Conversions start immediately and run continuously after init.
- */
+/* Configure ADC12 to continuously sample A0 (P6.0) with MEM0 interrupt */
 void adc_init() {
 
     /* Route P6.0 to ADC input A0 */
@@ -65,7 +26,7 @@ void adc_init() {
     ADC12CTL0 &= ~ADC12ENC;
 
     /* Sample‑and‑hold and multiple sample mode */
-    ADC12CTL0 &= ~ADC12MSC;           /* clear first: single conversion */
+    ADC12CTL0 &= ~ADC12MSC;           
     ADC12CTL0 |= ADC12SHT0_6;         /* 128 ADC clocks sample time on SHT0 */
     ADC12CTL0 |= ADC12MSC;            /* enable repeated conversions */
 
@@ -111,25 +72,7 @@ void adc_init() {
 
 }
 
-/**
- * @brief Try to retrieve the most recent “interesting” ADC value.
- *
- * @param[out] external_value  Pointer where the ADC value will be stored
- *                             if a new sample is available.
- *
- * @return true  if a new value was copied into *external_value and marked as
- *               published (consumed).
- * @return false if there is no unread value pending.
- *
- * Semantics :
- * - ISR sets `publish_value` and `published = false` when a new value should
- *   be processed by main.
- * - The first call to this function after that will:
- *     - copy `publish_value` to *external_value,
- *     - set `published = true`, and
- *     - return true.
- * - Subsequent calls will return false until the ISR publishes again.
- */
+/* Return true once per new value; copy into *external_value */
 bool poll_adc_value(uint16_t *external_value){
     if(!published) {
          *external_value = publish_value;
@@ -139,19 +82,8 @@ bool poll_adc_value(uint16_t *external_value){
     return false;
 }
 
-/**
- * @brief ADC12 interrupt service routine.
- *
- * Triggered when ADC12MEM0 has a new conversion result.
- *
- * Logic:
- * - Compute $|raw - last\_published|$.
- * - If the difference exceeds ADC_CHANGE_THRESHHOLD:
- *     - update last_published,
- *     - store raw in publish_value,
- *     - set published = false (main needs to consume),
- *     - request exit from LPM0 on ISR return.
- */
+/* ADC12 MEM0 ISR: publish sample if change > threshold, wake from LPM0 */
+
 #pragma vector=ADC12_VECTOR
 __interrupt void ADC12_interrupt(void) {
     if (ADC12IV == ADC12IV_ADC12IFG0) { 
