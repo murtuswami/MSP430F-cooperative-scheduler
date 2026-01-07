@@ -7,7 +7,6 @@ Bare-metal firmware for the MSP430F5529 LaunchPad implemented with direct regist
 
 ## Demos
 
-Place media in `assets/` and reference them below.
 
 ### 1) Board / wiring photo
 ![Board wiring](assets/board_wiring_2.jpeg)
@@ -23,7 +22,6 @@ Place media in `assets/` and reference them below.
 
 ### 4) Button long press behavior (GIF)
 ![Long press toggles P4.7](assets/long_press.gif)
-
 
 
 ---
