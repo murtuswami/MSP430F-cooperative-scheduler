@@ -84,3 +84,5 @@ driverlib/
 *.clangd
 
 *.prefs
+
+.theia
